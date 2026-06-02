@@ -1,0 +1,151 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <title>Cat Combat: Ultimate Web3</title>
+    <style>
+        :root {
+            --bg-color: #0c0d14;
+            --panel-bg: #151724;
+            --accent: #f6ad55;
+            --accent-glow: rgba(246, 173, 85, 0.25);
+            --neon-blue: #00f0ff;
+            --text-main: #ffffff;
+            --text-sub: #718096;
+            --green: #4ecca3;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background-color: var(--bg-color);
+            margin: 0; padding: 0; display: flex; align-items: center; justify-content: center;
+            height: 100vh; overflow: hidden; user-select: none; -webkit-user-select: none;
+        }
+
+        /* Экран загрузки */
+        #loading-screen {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background: radial-gradient(circle at center, #1e1b4b 0%, #050508 100%);
+            z-index: 9999; display: flex; flex-direction: column; align-items: center; justify-content: center;
+            transition: opacity 0.5s ease;
+        }
+        .loader-logo { font-size: 70px; margin-bottom: 20px; animation: pulse 1.5s infinite; }
+        .loader-title { color: #fff; font-size: 28px; font-weight: 800; letter-spacing: 3px; margin-bottom: 5px; text-shadow: 0 0 15px var(--accent-glow); }
+        .loader-sub { color: var(--text-sub); font-size: 13px; margin-bottom: 30px; }
+        .loader-bar-bg { width: 260px; height: 8px; background: rgba(255,255,255,0.05); border-radius: 10px; overflow: hidden; border: 1px solid rgba(255,255,255,0.1); }
+        .loader-bar-fill { width: 0%; height: 100%; background: linear-gradient(90deg, var(--neon-blue), var(--accent)); border-radius: 10px; transition: width 0.1s ease; }
+        .loader-status { color: #fff; font-size: 14px; font-weight: bold; margin-top: 12px; font-family: monospace; }
+        .loader-timer { color: var(--text-sub); font-size: 11px; margin-top: 5px; }
+
+        @keyframes pulse { 0%, 100% { transform: scale(1); } 50% { transform: scale(1.1); } }
+
+        /* Главное окно игры */
+        .game-window {
+            width: 100%; max-width: 390px; height: 100vh;
+            background: radial-gradient(circle at top, #141526 0%, #090a0f 100%);
+            position: relative; display: flex; flex-direction: column; box-sizing: border-box; padding: 15px;
+        }
+
+        .top-bar { display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; }
+        .user-info { display: flex; align-items: center; gap: 8px; font-weight: bold; color: #fff; font-size: 14px; }
+        .morse-indicator { font-size: 11px; color: var(--text-sub); letter-spacing: 1px; font-family: monospace; }
+        
+        .stats-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 15px; }
+        .stat-card { background: var(--panel-bg); border: 1px solid rgba(255,255,255,0.03); border-radius: 12px; padding: 10px; text-align: center; cursor: pointer; transition: all 0.2s; }
+        .stat-card.morse-active { border-color: #ef4444; box-shadow: 0 0 15px rgba(239,68,68,0.4); }
+        .stat-label { font-size: 10px; color: var(--text-sub); text-transform: uppercase; letter-spacing: 0.5px; }
+        .stat-value { font-size: 15px; font-weight: bold; color: #fff; margin-top: 3px; }
+
+        /* Экраны */
+        .screen { display: none; flex-direction: column; align-items: center; flex: 1; overflow-y: auto; padding-bottom: 80px; }
+        .screen.active { display: flex; }
+        .screen::-webkit-scrollbar { display: none; }
+
+        /* Баланс */
+        .balance-container { margin: 15px 0; display: flex; align-items: center; gap: 10px; }
+        .coin-img { width: 42px; height: 42px; animation: coin-spin 10s linear infinite; }
+        .balance-value { font-size: 44px; font-weight: 900; color: #fff; text-shadow: 0 4px 10px rgba(0,0,0,0.5); }
+        @keyframes coin-spin { 100% { transform: rotate(360deg); } }
+
+        /* Кот */
+        .cat-zone { position: relative; width: 220px; height: 220px; margin: 10px 0; display: flex; align-items: center; justify-content: center; }
+        .cat-bg { position: absolute; width: 100%; height: 100%; background: radial-gradient(circle, var(--accent-glow) 0%, rgba(0,0,0,0) 70%); border-radius: 50%; }
+        .cat-img { width: 190px; height: 190px; border-radius: 50%; border: 4px solid var(--accent); object-fit: cover; z-index: 2; transition: transform 0.05s; -webkit-tap-highlight-color: transparent; }
+        .cat-img:active { transform: scale(0.94); }
+        .cat-img.red-glow { border-color: #ef4444; box-shadow: 0 0 20px rgba(239,68,68,0.6); }
+
+        /* Энергия */
+        .energy-container { width: 90%; margin-top: 15px; }
+        .energy-info { display: flex; justify-content: space-between; font-size: 13px; color: #fff; font-weight: 500; }
+        .energy-bar { width: 100%; height: 10px; background: #1e293b; border-radius: 10px; margin-top: 6px; overflow: hidden; }
+        .energy-fill { width: 100%; height: 100%; background: linear-gradient(90deg, #f6ad55, #ed8936); transition: width 0.1s linear; }
+
+        /* Комбо */
+        .combo-container { display: flex; gap: 10px; width: 90%; margin-bottom: 10px; justify-content: center; }
+        .combo-slot { width: 50px; height: 50px; background: var(--panel-bg); border-radius: 10px; border: 1px dashed var(--text-sub); display: flex; align-items: center; justify-content: center; font-size: 22px; }
+        .combo-slot.guessed { border-color: var(--green); background: rgba(78,204,163,0.1); box-shadow: 0 0 10px rgba(78,204,163,0.2); }
+
+        /* Списки и Карточки */
+        .upgrade-list { width: 100%; display: flex; flex-direction: column; gap: 10px; }
+        .card { background: var(--panel-bg); border-radius: 14px; padding: 14px; display: flex; align-items: center; justify-content: space-between; cursor: pointer; border: 1px solid rgba(255,255,255,0.02); }
+        .card-inner { display: flex; align-items: center; gap: 14px; }
+        .card-icon { width: 45px; height: 45px; border-radius: 10px; background: #222533; }
+        .card-title { font-size: 15px; font-weight: bold; color: #fff; }
+        .card-profit { font-size: 12px; color: var(--green); margin-top: 3px; }
+        .card-lvl { font-size: 11px; color: var(--text-sub); margin-top: 1px; }
+        .card-price { font-size: 14px; font-weight: bold; color: var(--accent); display: flex; align-items: center; gap: 4px; }
+
+        /* Дейли Календарь */
+        .grid-7 { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; width: 100%; margin-top: 15px; }
+        .day-card { background: var(--panel-bg); padding: 12px 5px; border-radius: 10px; text-align: center; color: var(--text-sub); font-size: 11px; border: 1px solid rgba(255,255,255,0.02); cursor: pointer; }
+        .day-card.claimed { background: rgba(78,204,163,0.12); border-color: var(--green); color: #fff; }
+        .day-card.current { border-color: var(--neon-blue); color: #fff; background: rgba(0,240,255,0.05); }
+
+        /* Нижнее меню */
+        .navbar { position: fixed; bottom: 0; left: 50%; transform: translateX(-50%); width: 100%; max-width: 390px; height: 70px; background: #0e1017; display: flex; border-top: 1px solid rgba(255,255,255,0.05); z-index: 100; box-shadow: 0 -5px 20px rgba(0,0,0,0.5); }
+        .nav-item { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; color: var(--text-sub); font-size: 11px; cursor: pointer; font-weight: 500; transition: color 0.2s; }
+        .nav-item.active { color: var(--accent); }
+        .nav-icon { font-size: 22px; margin-bottom: 4px; }
+
+        /* Рефералка */
+        .invite-box { background: var(--panel-bg); padding: 16px; border-radius: 16px; width: 100%; box-sizing: border-box; text-align: center; margin-bottom: 20px; border: 1px solid rgba(255,255,255,0.03); }
+        .share-btn { background: var(--accent); color: #000; border: none; padding: 14px; border-radius: 12px; font-weight: bold; width: 100%; margin-top: 12px; cursor: pointer; font-size: 14px; }
+
+        /* Анимация клика (+X) */
+        .floating-text { position: absolute; color: #fff; font-size: 30px; font-weight: 900; text-shadow: 0 2px 6px #000, 0 0 10px var(--accent); pointer-events: none; animation: floatUp 0.4s ease-out forwards; z-index: 10; }
+        @keyframes floatUp { 0% { opacity: 1; transform: translateY(0) scale(0.8); } 100% { opacity: 0; transform: translateY(-80px) scale(1.2); } }
+    </style>
+</head>
+<body>
+
+    <!-- ЭКРАН ЗАГРУЗКИ -->
+    <div id="loading-screen">
+        <div class="loader-logo">🐱</div>
+        <div class="loader-title">CAT COMBAT</div>
+        <div class="loader-sub">Запуск крипто-биржи...</div>
+        <div class="loader-bar-bg"><div class="loader-bar-fill" id="load-fill"></div></div>
+        <div class="loader-status" id="load-percent">0%</div>
+        <div class="loader-timer" id="load-timer">Осталось примерно: 3 сек.</div>
+    </div>
+
+    <!-- ИГРОВОЕ ОКНО -->
+    <div class="game-window">
+        <div class="top-bar">
+            <div class="user-info">💼 Cat_CEO (Ранг 1)</div>
+            <div class="morse-indicator" id="morseCode">⚡ МОРЗЕ РЕЖИМ ОТКЛЮЧЕН</div>
+        </div>
+
+        <div class="stats-grid">
+            <div class="stat-card" id="pfcCard" onclick="triggerMorseClick()">
+                <div class="stat-label">Прибыль за клик</div>
+                <div class="stat-value">🪙 +<span id="pfc">1</span></div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-label">Прибыль в час</div>
+                <div class="stat-value" style="color: var(--green);">+<span id="piph">0</span></div>
+            </div>
+        </div>
+
+        <!-- ТАП -->
+        <div class="screen active" id="scr-tap">
